@@ -13,9 +13,20 @@
 # [initialized static variables]
 
 .text
-# [constants/strings]
+hello_world:
+    .asciz "Computer Organization 2024\nAssignment 1 - hello\nby Chantal Ariu"
 
 _main:
 main:
-    # Implement me!
+    # prologue
+    pushq %rbp
+    movq %rsp, %rbp
+
+    leaq hello_world(%rip), %rdi
+    movb $0, %al
+    call printf
+
+    # epilogue
+    movq %rbp, %rsp
+    popq %rbp
     ret
