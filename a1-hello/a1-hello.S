@@ -29,4 +29,5 @@ main:
     # epilogue
     movq %rbp, %rsp
     popq %rbp
+    movq $0, %rax
     ret
