@@ -44,8 +44,7 @@ main:
     subq $8, %rsp # since we only reserved 8 bytes, our stack is misaligned by 8 bytes (for subroutine calls, stack needs to be 16-byte aligned)
     call scanf # scanf is called with two arguments: the format string, loaded into %rdi, the address at which the input should be stored at (%rsi)
     addq $8, %rsp # we discard the 8 bytes that we added just for stack alignment, since we did not use them
-    popq %rax # pop result of scanf into %rax
-    movq %rax, %rdi
+    popq %rdi
 
     call my_inc
 
@@ -70,4 +69,3 @@ my_inc:
     movq %rbp, %rsp
     popq %rbp
     ret
-    
