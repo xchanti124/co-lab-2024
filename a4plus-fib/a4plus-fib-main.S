@@ -17,9 +17,40 @@
 # [initialized static variables]
 
 .text
-# [constants/strings]
+input_prompt:
+    .asciz "Enter an index: "
+input_index:
+    .asciz "%ld"
+output_message:
+    .asciz "F_%lu = %lu"
 
 _main:
 main:
-    # Implement me!
+    pushq   %rbp
+    movq    %rsp, %rbp
+
+    leaq    input_prompt(%rip), %rdi
+    movb    $0, %al
+    call    printf
+
+    leaq    input_index(%rip), %rdi
+    subq    $16, %rsp
+    leaq    -8(%rbp), %rsi
+    movb    $0, %al
+    call    scanf
+
+    movq    -8(%rbp), %rdi
+
+    call    my_fib
+
+    movq    -8(%rbp), %rsi
+    movq    %rax, %rdx
+
+    leaq    output_message(%rip), %rdi
+    movb    $0, %al
+    call printf
+
+    movq    %rbp, %rsp
+    popq    %rbp
+    movq    $0, %rax
     ret
