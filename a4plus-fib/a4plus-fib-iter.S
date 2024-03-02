@@ -23,10 +23,9 @@ my_fib:
     pushq   %rbp
     movq    %rsp, %rbp
 
-    cmpq    $1, %rdi
-    # decq    %rdi
-    movq    %rdi, %rax
-    jle     return
+    cmpq    $1, %rdi    # rdi <= 1?
+    movq    %rdi, %rax  # rdi -> rax
+    jbe     return      # return rax
 
     movq    $0, %rsi    # num1 
     movq    $1, %rdx    # temp
@@ -35,7 +34,7 @@ my_fib:
     subq    $1, %rdi
     loop:
         cmpq    $0, %rdi
-        jle     end
+        jbe     end
         # temp = sum
         # sum = sum + num1
         # num1 = temp
