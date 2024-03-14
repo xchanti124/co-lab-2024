@@ -84,36 +84,43 @@ my_diff:
     movb    $0, %al
     call    fopen               # %rax = fopen(file_a, "r"); returns FILE*
     movq    %rax, -40(%rbp)
+
     cmpq    $0, %rax
-    jne     elsecode1
+    je      file_a_is_null
+    jne     file_a_not_null
 
-    movq    $-1, %rax
-    jmp     return
+        _file_a_is_null:
+        file_a_is_null:
+            movq    $-1, %rax
+            jmp     return
 
-_elsecode1:
-elsecode1:
+_file_a_not_null:
+file_a_not_null:
     # char current_line_a[1025]
     subq    $1032, %rsp         # creating a buffer of characters with length of 1025
     # bool file_a_end = false
     movq    $0, -48(%rbp)       # file_a_end
+
 
     movq    -16(%rbp), %rdi     # move file_b into %rdi (first arg for fopen)
     leaq    read(%rip), %rsi    # move "r" opening mood into second argument
     movb    $0, %al
     call    fopen
     movq    %rax, -56(%rbp)
+
     cmpq    $0, %rax
-    jne     elsecode2
+    je      file_b_is_null
+    jne     file_b_not_null
 
-    # fclose(file_a);
-    # return -1;
-    leaq    -8(%rbp), %rdi      # move file_a into %rdi
-    call    fclose              # close file_a
-    movq    $-1, %rax      
-    jmp     return 
+        _file_b_is_null:
+        file_b_is_null:
+            leaq    -8(%rbp), %rdi      # move file_a into %rdi
+            call    fclose              # close file_a
+            movq    $-1, %rax      
+            jmp     return 
 
-_elsecode2:
-elsecode2:
+_file_b_not_null:
+file_b_not_null:
     # char current_line_b[1025]
     subq    $1032, %rsp
     # bool file_b_end = false
@@ -130,12 +137,12 @@ loop:                           # while(!(file_a_end && file_b_end)) = while(!fi
     andq    -48(%rbp), %r8      # %r8 is 1 if either file_a_end = 1 and file_b_end = 1, will be 0 if either one is 0 or both
     # > !%r8 -> !file_a_end || !file_b_end
     cmpq    $1, %r8 
-    je     break
+    je      break
 
     incq    -72(%rbp)           # curr_line++
 
     cmpq    $0, -48(%rbp)       # if(!file_a_end)
-    jne     elsecode3
+    jne     file_a_end_true
 
     # fgets(current_line_a, sizeof(current_line_a), file_a)
     leaq    -1144(%rbp), %rdi
@@ -147,13 +154,13 @@ loop:                           # while(!(file_a_end && file_b_end)) = while(!fi
     movq    %rax, -88(%rbp)     # results (if the result is null then we have no new lines)
 
     cmpq    $0, -88(%rbp)
-    jne     elsecode3
+    jne     file_a_end_true
     movq    $1, -48(%rbp)
 
-_elsecode3:
-elsecode3:
-    cmpq    $0, -64(%rbp)
-    jne     elsecode4
+_file_a_end_true:
+file_a_end_true:
+    cmpq    $0, -64(%rbp)       # file_b_end
+    jne     file_b_end_true
 
     leaq    -2176(%rbp), %rdi
     movq    $1032, %rsi
@@ -164,12 +171,11 @@ elsecode3:
     movq    %rax, -88(%rbp)     
     
     cmpq    $0, -88(%rbp)
-    jne     elsecode4
+    jne     file_b_end_true
     movq    $1, -64(%rbp)
-    jmp     break
 
-_elsecode4:
-elsecode4:
+_file_b_end_true:
+file_b_end_true:
     # !file_a_end ? current_line_a : "\n"
     cmpq    $0, -48(%rbp)
     je      ifcode3
@@ -225,6 +231,7 @@ endif2:
     cmpq    $0, %rax
     jne     ifcode
     movq    $0, -112(%rbp)
+    jmp     idfk
 
 _ifcode:
 ifcode:
@@ -261,7 +268,8 @@ idfk:
 
     leaq    changestring(%rip), %rdi
     movb    $0, %al
-    call printf
+    call    printf
+    jmp     loop
 
 _break:
 break:
@@ -269,10 +277,10 @@ break:
     call    fclose
     movq    -56(%rbp), %rdi
     call    fclose
+    movq    -80(%rbp), %rax
 
 _return:
 return:
-    movq    -80(%rbp), %rax
     movq    %rbp, %rsp
     popq    %rbp
     ret
