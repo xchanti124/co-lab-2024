@@ -31,12 +31,10 @@
 .text
 input_prompt:
     .asciz "Enter an index: "
-new_line:
-    .asciz "\n"
 input_index:
     .asciz "%lu"
 output_message:
-    .asciz "F_%lu = %lu"
+    .asciz "F_%lu = %lu\n"
 exiting:
     .asciz "Exiting..."
 
@@ -74,19 +72,16 @@ loop_main:
     movq    0(%rax, %rsi, 8), %rdx        # Store arr[index] in register %rdx
 
     cmpq    %rsi, -16(%rbp)               # Is size < index?
-    jb      ifcode                        # jump to ifcodde
+    jae     elsecode
 
-_ifcode:                                  
-ifcode:
     movq    %rsi, -16(%rbp)               # Update size to be index; size = index
 
+_elsecode:
+elsecode:
     leaq    output_message(%rip), %rdi    # Create output message, currently %rsi is holding the index, %rdx the result
     movb    $0, %al
     call    printf
 
-    leaq    new_line(%rip), %rdi          # Print a new line
-    movb    $0, %al
-    call    printf
     jmp     loop_main                     # Jump to the beginning of the loop
 
 _return_main:
