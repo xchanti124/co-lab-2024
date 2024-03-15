@@ -81,7 +81,6 @@ my_diff:
     movq    %rcx, -32(%rbp)     # flag_B
 
     leaq    read(%rip), %rsi
-    movb    $0, %al
     call    fopen               # %rax = fopen(file_a, "r"); returns FILE*
     movq    %rax, -40(%rbp)
 
@@ -104,7 +103,6 @@ file_a_not_null:
 
     movq    -16(%rbp), %rdi     # move file_b into %rdi (first arg for fopen)
     leaq    read(%rip), %rsi    # move "r" opening mood into second argument
-    movb    $0, %al
     call    fopen
     movq    %rax, -56(%rbp)
 
@@ -166,9 +164,9 @@ loop:                           # while(!(file_a_end && file_b_end)) = while(!fi
             #    {
             #        break;
             #    }
-            leaq    new_line(%rip), %rdi
-            movq    -1144(%rbp), %rsi
-            cmpq    (%rsi), %rdi
+            movb    new_line(%rip), %dil
+            movb    -1144(%rbp), %sil
+            cmpb    %sil, %dil
             jne     break_while_true_a
 
             cmpq    $0, -32(%rbp)
@@ -179,7 +177,6 @@ loop:                           # while(!(file_a_end && file_b_end)) = while(!fi
 
 _break_while_true_a:
 break_while_true_a:
-
 
     cmpq    $0, -64(%rbp)       # file_b_end
     jne     file_b_end_true
@@ -201,9 +198,9 @@ break_while_true_a:
 
         _file_b_end_true:
         file_b_end_true:
-            leaq    new_line(%rip), %rdi
-            movq    -2176(%rbp), %rsi
-            cmpq    (%rsi), %rdi
+            movb    new_line(%rip), %dil
+            movb    -2176(%rbp), %sil
+            cmpb    %sil, %dil
             jne     break_while_true_b
 
             cmpq    $0, -32(%rbp)
@@ -262,12 +259,12 @@ endif2:
     movq    -96(%rbp), %rdi
     movq    -104(%rbp), %rsi
 
-    call    strcasecmp                  # line 100 in C code, try to make it into 2 statements
+    call    strcasecmp
 
     cmpq    $0, %rax
     jne     ifcode
     movq    $0, -112(%rbp)
-    jmp     idfk
+    jmp     rax_zero
 
 _ifcode:
 ifcode:
@@ -284,14 +281,14 @@ elsecode7:
     cmpq    $0, %rax                    # if rax = 0, then the lines are THE SAME
     jne     ifcode2
     movq    $0, -112(%rbp)              # if rax = 0, then are_lines_different = 0
-    jmp     idfk
+    jmp     rax_zero
 
 _ifcode2:
 ifcode2:
     movq    $1, -112(%rbp)
 
-_idfk:
-idfk:
+_rax_zero:
+rax_zero:
     cmpq    $1, -112(%rbp)              # if(are_lines_different = 1)
     jne     loop                
     
