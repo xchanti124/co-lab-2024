@@ -144,38 +144,74 @@ loop:                           # while(!(file_a_end && file_b_end)) = while(!fi
     cmpq    $0, -48(%rbp)       # if(!file_a_end)
     jne     file_a_end_true
 
+
+    # while true start
+    _while_true_a:
+    while_true_a:
     # fgets(current_line_a, sizeof(current_line_a), file_a)
-    leaq    -1144(%rbp), %rdi
-    movq    $1032, %rsi
-    movq    -40(%rbp), %rdx
+        leaq    -1144(%rbp), %rdi
+        movq    $1032, %rsi
+        movq    -40(%rbp), %rdx
 
-    call    fgets
+        call    fgets    # results (if the result is null then we have no new lines)
 
-    movq    %rax, -88(%rbp)     # results (if the result is null then we have no new lines)
+        cmpq    $0, %rax
+        jne     file_a_end_true
+        movq    $1, -48(%rbp)
+        jmp     break_while_true_a
 
-    cmpq    $0, -88(%rbp)
-    jne     file_a_end_true
-    movq    $1, -48(%rbp)
+        _file_a_end_true:
+        file_a_end_true:
+            # -> if (!flag_B || current_line_a[0] != '\n')
+            #    {
+            #        break;
+            #    }
+            leaq    new_line(%rip), %rdi
+            movq    -1144(%rbp), %rsi
+            cmpq    (%rsi), %rdi
+            jne     break_while_true_a
 
-_file_a_end_true:
-file_a_end_true:
+            cmpq    $0, -32(%rbp)
+            je      break_while_true_a
+
+    jmp    while_true_a
+    # while true end
+
+_break_while_true_a:
+break_while_true_a:
+
+
     cmpq    $0, -64(%rbp)       # file_b_end
     jne     file_b_end_true
 
-    leaq    -2176(%rbp), %rdi
-    movq    $1032, %rsi
-    movq    -56(%rbp), %rdx
+    _while_true_b:
+     while_true_b:
 
-    call    fgets
+        leaq    -2176(%rbp), %rdi
+        movq    $1032, %rsi
+        movq    -56(%rbp), %rdx
 
-    movq    %rax, -88(%rbp)     
+        call    fgets     
     
-    cmpq    $0, -88(%rbp)
-    jne     file_b_end_true
-    movq    $1, -64(%rbp)
+        cmpq    $0, %rax
+        jne     file_b_end_true
+        movq    $1, -64(%rbp)
+        jmp     break_while_true_b
 
-_file_b_end_true:
-file_b_end_true:
+
+        _file_b_end_true:
+        file_b_end_true:
+            leaq    new_line(%rip), %rdi
+            movq    -2176(%rbp), %rsi
+            cmpq    (%rsi), %rdi
+            jne     break_while_true_b
+
+            cmpq    $0, -32(%rbp)
+            je      break_while_true_b
+    jmp     while_true_b
+
+_break_while_true_b:
+break_while_true_b:
     # !file_a_end ? current_line_a : "\n"
     cmpq    $0, -48(%rbp)
     je      ifcode3
@@ -254,7 +290,7 @@ _ifcode2:
 ifcode2:
     movq    $1, -112(%rbp)
 
-idfk_:
+_idfk:
 idfk:
     cmpq    $1, -112(%rbp)              # if(are_lines_different = 1)
     jne     loop                
