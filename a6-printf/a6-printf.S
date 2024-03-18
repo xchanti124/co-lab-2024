@@ -1,3 +1,4 @@
+#define STANDALONE
 #ifdef MACOS
     .global _my_printf
     putchar: jmp _putchar
@@ -133,17 +134,17 @@ my_printf:
             arg_in_registers:
                 movb    %dl, -24(%rbp)
                 movq    -8(%rbp), %rcx
-                movq    %rcx, %rax                  # copy arg_counter into rax 
-                mulq    8(%rsp)                     # rsp - 8 * counter (rax = rax * rsp - 8); rax holds arg corresponding to % in frmtstr
-                movq    %rax, %rdi
+                movq    (%rsp, %rcx, 8), %rdi
                 jmp     dealing_with_format
 
             _arg_on_stack:
             arg_on_stack:
                 movb    %dl, -24(%rbp)
-                movq    %rcx, %rax              # copy arg_counter into rax
-                imulq   $8, %rax                # arg_counter * 8
-                addq    -8(%rbp), %rax          # rbp + 8 + counter * 8; rax holds the result
+                movq    -8(%rbp), %rcx
+                subq    $5, %rcx
+                movq    %rbp, %rdi
+                addq    $8, %rdi
+                movq    (%rdi, %rcx, 8), %rdi
 
             _dealing_with_format:
             dealing_with_format:
@@ -165,21 +166,18 @@ my_printf:
 
                 _call_string_handler:
                 call_string_handler:
-                    movq    %rax, %rdi
                     call    string_handler
                     incq    -16(%rbp)
                     jmp     next_iteration
 
                 _call_signed_int_handler:
                 call_signed_int_handler:
-                    movq    %rax, %rdi
                     call    signed_int_handler
                     incq    -16(%rbp)
                     jmp     next_iteration
 
                 _call_unsigned_int_handler:
                 call_unsigned_int_handler:
-                    movq    %rax, %rdi
                     call    unsigned_int_handler
                     incq    -16(%rbp)
                     jmp     next_iteration
@@ -243,6 +241,7 @@ string_handler:
         movb    (%rdi, %rcx, 1), %dl           # move one character at a time (1 byte) into %sil for upcoming comparison
         cmpb    %sil, %dl
         je      end_while_char_not_null
+        xor     %rdi, %rdi
         movb    %dl, %dil
         call    putchar                         # putchar will now be called with dil
         incq    -16(%rbp)
