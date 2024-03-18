@@ -27,37 +27,48 @@ signed_int:
     .asciz "d"
 string:
     .asciz "s"
-test_string:
-    .asciz "i am %s and i am %u years old and have %u dog.\n" 
-name:
-    .asciz "chanti" 
-age:
-    .asciz "I am nineteen"
-hobby:
-    .asciz "i like reading," 
-color:
-    .asciz "favorite color is blue,"
-hair:
-    .asciz "my hair is brown," 
-eyes:
-    .asciz "my eyes are brown"  
-test:
-    .asciz "this is a test"
-
+minus_sign:
+    .asciz "-"
 null_terminator:
     .asciz "\0"
+
+test_string_1:
+    .asciz "Unsigned Value: %u\n"
+test_string_2:
+    .asciz "Value: %d\n"
+test_string_3:
+    .asciz "Negative Value: %d\n"
+test_string_4:
+    .asciz "String: %s\n"
+test_string_5:
+    .asciz "100%% Complete\n"
+
+test_arg:
+    .asciz "Computer Organization"
 
 _main:
 main:
     pushq   %rbp
     movq    %rsp, %rbp
 
-    leaq    test_string(%rip), %rdi
-    leaq    name(%rip), %rsi
-    movq    $19, %rdx
-    movq    $1, %rcx
-
+    leaq    test_string_1(%rip), %rdi
+    movq    $95, %rsi
     call    my_printf  
+
+    leaq    test_string_2(%rip), %rdi
+    movq    $42, %rsi
+    call    my_printf
+
+    leaq    test_string_3(%rip), %rdi
+    movq    $-42, %rsi
+    call    my_printf
+
+    leaq    test_string_4(%rip), %rdi
+    leaq    test_arg(%rip), %rsi
+    call    my_printf
+
+    leaq    test_string_5(%rip), %rdi
+    call    my_printf
 
     movq    %rbp, %rsp
     popq    %rbp
@@ -75,6 +86,8 @@ my_printf:
     movq    $0, -8(%rbp)        # the counter to keep track of the amount of "%" (args) that
     movq    $0, -16(%rbp)       # the counter (to be use as index in the loop) initialized to 0 and stored at -16(%rbp)
 
+    pushq   %r9
+    pushq   %r8
     pushq   %rcx
     pushq   %rdx
     pushq   %rsi
@@ -242,6 +255,26 @@ signed_int_handler:
     pushq   %rbp
     movq    %rsp, %rbp
 
+    subq    $16, %rsp
+    movq    %rdi, -8(%rbp)
+    cmpq    $0, -8(%rbp)
+    jle     negative_handling
+    call    unsigned_int_handler
+    jmp     return_unsigned
+
+    _negative_handling:
+    negative_handling:
+        movq    minus_sign(%rip), %rdi
+        call    putchar
+
+        movq    -8(%rbp), %rsi
+        movq    $-1, %rdx
+        imulq   %rdx, %rsi               # now %rsi holds the positive value
+        movq    %rsi, %rdi
+        call    unsigned_int_handler
+
+_return_unsigned:
+return_unsigned:
     movq    %rbp, %rsp
     popq    %rbp
     ret
