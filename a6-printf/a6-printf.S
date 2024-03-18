@@ -21,8 +21,18 @@
 .text
 percentage_sign:
     .asciz "%"
+unsigned_int:
+    .asciz "u"
+signed_int:
+    .asciz "d"
+string:
+    .asciz "s"
 test_string:
-    .asciz "Hello, this will be a percentage sign %% and this will be an argument %.\n"
+    .asciz "my name: %s and i love programming.\n"
+age:
+    .asciz "19"
+name:
+    .asciz "chanti"
 null_terminator:
     .asciz "\0"
 
@@ -32,6 +42,7 @@ main:
     movq    %rsp, %rbp
 
     leaq    test_string(%rip), %rdi
+    leaq    name(%rip), %rsi
     # movb  $0, %al
     call    my_printf  
 
@@ -47,23 +58,22 @@ my_printf:
     pushq   %rbp
     movq    %rsp, %rbp
 
-    pushq   %rdi
-    pushq   %rsi
-    pushq   %rdx
-    pushq   %rcx
-    pushq   %r8
-    pushq   %r9
-
-    subq    $16, %rsp
-    movq    %rdi, 8(%rsp)       # move the pointer to the format string into memory location 8(%rsp)
+    subq    $32, %rsp
     movq    $0, -8(%rbp)        # the counter to keep track of the amount of "%" (args) that
     movq    $0, -16(%rbp)       # the counter (to be use as index in the loop) initialized to 0 and stored at -16(%rbp)
+
+    pushq   %r9
+    pushq   %r8
+    pushq   %rcx
+    pushq   %rdx
+    pushq   %rsi
+    pushq   %rdi
 
     _start_while_char_not_arg:
     start_while_char_not_arg:
         # while code                 
         movq    -16(%rbp), %rcx                # since the loop will contain function calls, at the beginning we restore ptr
-        movq    8(%rsp), %rdi
+        movq    0(%rsp), %rdi
 
         movb    null_terminator(%rip), %sil    # this block checks whether char == '\0'
         xorb    %dl, %dl                       # zeroing out the rest of the register
@@ -88,6 +98,67 @@ my_printf:
     _char_arg:
     char_arg:
         incq    -8(%rbp)
+
+        # in here we will add logic for format specifiers:
+        # 1. we need to get the next character following '%' and match it with its corresponding argument (either d,u,s)
+        # 2. we reach the argument by doing rsp - 8 * counter (if arg_counter <= 5) REGISTERS
+        # 3. we reach the argument by doing rbp + 8 + counter * 8 (if arg_counter > 5) ON STACK
+        cmpq    $5, -8(%rbp)
+        jle     arg_in_registers
+        jg      arg_on_stack
+
+            _arg_in_registers:
+            arg_in_registers:
+                movb    %dl, -24(%rbp)
+                movq    -8(%rbp), %rcx
+                movq    %rcx, %rax                  # copy arg_counter into rax 
+                mulq    8(%rsp)                     # rsp - 8 * counter (rax = rax * rsp - 8); rax holds arg corresponding to % in frmtstr
+
+                movb    -24(%rbp), %dl              # mulq changed rdx as a side effect so we need to restore it
+                movb    string(%rip), %sil          # move "s" format specifier into sil for comparison
+                cmpb    %sil, %dl                   # is char == "s"
+                je      call_string_handler         
+
+                movb    signed_int(%rip), %sil      # move "d" format specifier into sil for comparison
+                cmpb    %sil, %dl                   # is char == "d"
+                je      call_signed_int_handler
+
+                movb    unsigned_int(%rip), %sil    # move "u" format specifier into sil for comparison
+                cmpb    %sil, %dl                   # is char == "u"    
+                je      call_unsigned_int_handler
+
+                incq    -16(%rbp)
+                jmp     start_while_char_not_arg
+
+                _call_string_handler:
+                call_string_handler:
+                    movq    %rax, %rdi
+                    call    string_handler
+                    incq    -16(%rbp)
+                    jmp     next_iteration
+
+                _call_signed_int_handler:
+                call_signed_int_handler:
+                    movq    %rax, %rdi
+                    call    signed_int_handler
+                    incq    -16(%rbp)
+                    jmp     next_iteration
+
+                _call_unsigned_int_handler:
+                call_unsigned_int_handler:
+                    movq    %rax, %rdi
+                    call    unsigned_int_handler
+                    incq    -16(%rbp)
+                    jmp     next_iteration
+
+            _arg_on_stack:
+            arg_on_stack:
+                movq    %rcx, %rax              # copy arg_counter into rax
+                imulq   $8, %rax                # arg_counter * 8
+                addq    -8(%rbp), %rax          # rbp + 8 + counter * 8; rax holds the result
+
+    _next_iteration:
+    next_iteration:
         incq    -16(%rbp)
         jmp     start_while_char_not_arg
 
@@ -102,6 +173,57 @@ my_printf:
 
 _return:
 return:
+    movq    %rbp, %rsp
+    popq    %rbp
+    ret
+
+
+_unsigned_int_handler:
+unsigned_int_handler:
+    pushq   %rbp
+    movq    %rsp, %rbp
+
+    movq    %rbp, %rsp
+    popq    %rbp
+    ret
+
+_signed_int_handler:
+signed_int_handler:
+    pushq   %rbp
+    movq    %rsp, %rbp
+
+    movq    %rbp, %rsp
+    popq    %rbp
+    ret
+
+_string_handler:
+string_handler:
+    pushq   %rbp
+    movq    %rsp, %rbp
+    # %rdi holds a null terminated string, so we just putchar as long as char != '\0'
+
+    subq    $16, %rsp
+    movq    %rdi, -8(%rbp)
+    movq    $0, -16(%rbp)
+
+    _start_while_char_not_null:
+    start_while_char_not_null:
+        movq    -16(%rbp), %rcx
+        movq    -8(%rbp), %rdi
+
+        movb    null_terminator(%rip), %sil    # this block checks whether char == '\0'
+        xorb    %dl, %dl                       # zeroing out the rest of the register
+        movb    (%rdi, %rcx, 1), %dl           # move one character at a time (1 byte) into %sil for upcoming comparison
+        cmpb    %sil, %dl
+        je      end_while_char_not_null
+        movb    %dl, %dil
+        call    putchar                         # putchar will now be called with dil
+        incq    -16(%rbp)
+        jmp     start_while_char_not_null
+
+    _end_while_char_not_null:
+    end_while_char_not_null:
+
     movq    %rbp, %rsp
     popq    %rbp
     ret
