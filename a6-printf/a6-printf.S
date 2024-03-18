@@ -28,11 +28,22 @@ signed_int:
 string:
     .asciz "s"
 test_string:
-    .asciz "my name: %s and i love programming.\n"
-age:
-    .asciz "19"
+    .asciz "my name: %s %s %s %s %s %s %s\n" # 31 
 name:
-    .asciz "chanti"
+    .asciz "chanti" # 7
+age:
+    .asciz "I am nineteen" # 14
+hobby:
+    .asciz "i like reading," # 28
+color:
+    .asciz "favorite color is blue," # 24
+hair:
+    .asciz "my hair is brown," # 18 
+eyes:
+    .asciz "my eyes are brown" # 18 
+test:
+    .asciz "this is a test" # 15
+
 null_terminator:
     .asciz "\0"
 
@@ -43,7 +54,16 @@ main:
 
     leaq    test_string(%rip), %rdi
     leaq    name(%rip), %rsi
-    # movb  $0, %al
+    leaq    age(%rip), %rdx
+    leaq    hobby(%rip), %rcx
+    leaq    color(%rip), %r8
+    leaq    hair(%rip), %r9
+    leaq    test(%rip), %r12
+    leaq    eyes(%rip), %r13
+    pushq   %r12
+    pushq   %r13
+    
+
     call    my_printf  
 
     movq    %rbp, %rsp
@@ -77,7 +97,9 @@ my_printf:
 
         movb    null_terminator(%rip), %sil    # this block checks whether char == '\0'
         xorb    %dl, %dl                       # zeroing out the rest of the register
-        movb    (%rdi, %rcx, 1), %dl           # move one character at a time (1 byte) into %sil for upcoming comparison
+        movb    (%rdi, %rcx, 1), %dl           # move one character at a time (1 byte) into %dl for upcoming comparison
+        movb    %dl, -25(%rbp)
+        movb    -25(%rbp), %dl
         cmpb    %sil, %dl
         je      return
 
@@ -113,7 +135,18 @@ my_printf:
                 movq    -8(%rbp), %rcx
                 movq    %rcx, %rax                  # copy arg_counter into rax 
                 mulq    8(%rsp)                     # rsp - 8 * counter (rax = rax * rsp - 8); rax holds arg corresponding to % in frmtstr
+                movq    %rax, %rdi
+                jmp     dealing_with_format
 
+            _arg_on_stack:
+            arg_on_stack:
+                movb    %dl, -24(%rbp)
+                movq    %rcx, %rax              # copy arg_counter into rax
+                imulq   $8, %rax                # arg_counter * 8
+                addq    -8(%rbp), %rax          # rbp + 8 + counter * 8; rax holds the result
+
+            _dealing_with_format:
+            dealing_with_format:
                 movb    -24(%rbp), %dl              # mulq changed rdx as a side effect so we need to restore it
                 movb    string(%rip), %sil          # move "s" format specifier into sil for comparison
                 cmpb    %sil, %dl                   # is char == "s"
@@ -150,12 +183,6 @@ my_printf:
                     call    unsigned_int_handler
                     incq    -16(%rbp)
                     jmp     next_iteration
-
-            _arg_on_stack:
-            arg_on_stack:
-                movq    %rcx, %rax              # copy arg_counter into rax
-                imulq   $8, %rax                # arg_counter * 8
-                addq    -8(%rbp), %rax          # rbp + 8 + counter * 8; rax holds the result
 
     _next_iteration:
     next_iteration:
