@@ -1,4 +1,3 @@
-#define STANDALONE
 #ifdef MACOS
     .global _my_printf
     putchar: jmp _putchar
