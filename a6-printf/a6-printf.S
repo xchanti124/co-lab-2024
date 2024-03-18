@@ -28,21 +28,21 @@ signed_int:
 string:
     .asciz "s"
 test_string:
-    .asciz "my name: %s %s %s %s %s %s %s\n" # 31 
+    .asciz "i am %s and i am %u years old and have %u dog.\n" 
 name:
-    .asciz "chanti" # 7
+    .asciz "chanti" 
 age:
-    .asciz "I am nineteen" # 14
+    .asciz "I am nineteen"
 hobby:
-    .asciz "i like reading," # 28
+    .asciz "i like reading," 
 color:
-    .asciz "favorite color is blue," # 24
+    .asciz "favorite color is blue,"
 hair:
-    .asciz "my hair is brown," # 18 
+    .asciz "my hair is brown," 
 eyes:
-    .asciz "my eyes are brown" # 18 
+    .asciz "my eyes are brown"  
 test:
-    .asciz "this is a test" # 15
+    .asciz "this is a test"
 
 null_terminator:
     .asciz "\0"
@@ -54,15 +54,8 @@ main:
 
     leaq    test_string(%rip), %rdi
     leaq    name(%rip), %rsi
-    leaq    age(%rip), %rdx
-    leaq    hobby(%rip), %rcx
-    leaq    color(%rip), %r8
-    leaq    hair(%rip), %r9
-    leaq    test(%rip), %r12
-    leaq    eyes(%rip), %r13
-    pushq   %r12
-    pushq   %r13
-    
+    movq    $19, %rdx
+    movq    $1, %rcx
 
     call    my_printf  
 
@@ -82,8 +75,6 @@ my_printf:
     movq    $0, -8(%rbp)        # the counter to keep track of the amount of "%" (args) that
     movq    $0, -16(%rbp)       # the counter (to be use as index in the loop) initialized to 0 and stored at -16(%rbp)
 
-    pushq   %r9
-    pushq   %r8
     pushq   %rcx
     pushq   %rdx
     pushq   %rsi
@@ -201,12 +192,47 @@ return:
     popq    %rbp
     ret
 
-
 _unsigned_int_handler:
 unsigned_int_handler:
     pushq   %rbp
     movq    %rsp, %rbp
 
+    subq    $32, %rsp
+    movq    %rdi, -8(%rbp)      # move rdi to location -8
+    movq    $0, -24(%rbp)       # move 0 into location -24 (this will be the counter to keep track of how many digits we got)
+
+    _while_quotient_not_0:
+    while_quotient_not_0:
+        movq    %rdi, %rax      # rax will be the numerator of the division
+        movq    $10, %r11       # r11 will be the denominator of the division (always 10 since decimal numbers)
+        xorq    %rdx, %rdx      # clearing out rdx
+        divq    %r11            # rax / r11 (floor is taken)
+
+        cmpq    $0, %rax        # we check if the result is 0, if it is we jump
+        je      quotient_zero
+        addq    $'0', %rdx      # we turn the remainder into a char
+        pushq   %rdx            # we push it onto the stack
+        movq    %rax, %rdi      # we update rdi with the quotient of the previous division
+        incq    -24(%rbp)       # increment the digit counter
+        jmp     while_quotient_not_0 # jump to beginning of the loop
+
+    _quotient_zero:
+    quotient_zero:
+        incq    -24(%rbp)       # in the case that quotient is 0, we have one digit left so increment counter
+        addq    $'0', %rdx      # turn the digit (remainder of division) into a char
+        pushq   %rdx            # push it on the stack
+
+    _while_counter_not_0:
+    while_counter_not_0:
+        cmpq    $0, -24(%rbp)
+        je      counter_0
+        popq    %rdi
+        call    putchar
+        decq    -24(%rbp)
+        jmp     while_counter_not_0
+        
+_counter_0:
+counter_0:
     movq    %rbp, %rsp
     popq    %rbp
     ret
