@@ -22,7 +22,7 @@
 percentage_sign:
     .asciz "%"
 test_string:
-    .asciz "abcd"
+    .asciz "ab%cd%"
 null_terminator:
     .asciz "\0"
 
@@ -47,35 +47,48 @@ my_printf:
     pushq   %rbp
     movq    %rsp, %rbp
 
+    pushq   %rdi
+    pushq   %rsi
+    pushq   %rdx
+    pushq   %rcx
+    pushq   %r8
+    pushq   %r9
+
     subq    $16, %rsp
-    movq    %rdi, -8(%rbp)      # move the pointer to the format string into memory location -8(%rbp)
+    movq    %rdi, 8(%rsp)       # move the pointer to the format string into memory location 8(%rsp)
+    movq    $0, -8(%rbp)        # the counter to keep track of the amount of "%" (args) that
     movq    $0, -16(%rbp)       # the counter (to be use as index in the loop) initialized to 0 and stored at -16(%rbp)
 
-    _start_while:
-    start_while:
+    _start_while_char_not_percentage:
+    start_while_char_not_percentage:
         # while code                 
         movq    -16(%rbp), %rcx                # since the loop will contain function calls, at the beginning we restore ptr
-        movq    -8(%rbp), %rdi
+        movq    8(%rsp), %rdi
 
-        movb    percentage_sign(%rip), %sil    # one char is one byte so we move the "%" char into %sil register
+        movb    null_terminator(%rip), %sil    # this block checks whether char == '\0'
         xorb    %dl, %dl                       # zeroing out the rest of the register
         movb    (%rdi, %rcx, 1), %dl           # move one character at a time (1 byte) into %sil for upcoming comparison
-        cmpb    %sil, %dl                      # we compare each format string character to "%"
-        je      end_while                      # if the character is equal to "%", we exit the loop (execute some logic)
-        movb    null_terminator(%rip), %sil
         cmpb    %sil, %dl
         je      return
 
+        movb    percentage_sign(%rip), %sil    # one char is one byte so we move the "%" char into %sil register
+        cmpb    %sil, %dl                      # we compare each format string character to "%"
+        jne     char_not_percentage            # if the character is equal to "%", we have to increment a counter (for now)
+        incq    -8(%rbp)
+        incq    -16(%rbp)
+        jmp     start_while_char_not_percentage
+
+    _char_not_percentage:
+    char_not_percentage:
         movb    %dl, %dil
         call    putchar                         # putchar will now be called with dil
         incq    -16(%rbp)
-        jmp     start_while
-    _end_while:
-    end_while:
+        jmp     start_while_char_not_percentage
+    _end_while_char_not_percentage:
+    end_while_char_not_percentage: 
 
 _return:
 return:
     movq    %rbp, %rsp
     popq    %rbp
     ret
-    
