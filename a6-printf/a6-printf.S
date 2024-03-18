@@ -22,7 +22,7 @@
 percentage_sign:
     .asciz "%"
 test_string:
-    .asciz "ab%cd%"
+    .asciz "Hello, this will be a percentage sign %% and this will be an argument %.\n"
 null_terminator:
     .asciz "\0"
 
@@ -59,8 +59,8 @@ my_printf:
     movq    $0, -8(%rbp)        # the counter to keep track of the amount of "%" (args) that
     movq    $0, -16(%rbp)       # the counter (to be use as index in the loop) initialized to 0 and stored at -16(%rbp)
 
-    _start_while_char_not_percentage:
-    start_while_char_not_percentage:
+    _start_while_char_not_arg:
+    start_while_char_not_arg:
         # while code                 
         movq    -16(%rbp), %rcx                # since the loop will contain function calls, at the beginning we restore ptr
         movq    8(%rsp), %rdi
@@ -73,19 +73,32 @@ my_printf:
 
         movb    percentage_sign(%rip), %sil    # one char is one byte so we move the "%" char into %sil register
         cmpb    %sil, %dl                      # we compare each format string character to "%"
-        jne     char_not_percentage            # if the character is equal to "%", we have to increment a counter (for now)
+        jne     char_not_arg                   # if the character is equal to "%", we have to increment arg counter
+
+            incq    -16(%rbp)                   # increment index (to check str[i+1])
+            movq    -16(%rbp), %rcx
+            movb    (%rdi, %rcx, 1), %dl        # move str[i+1] into dl for comparison
+            decq    -16(%rbp)                   # decrement it to get back to normal
+            movq    -16(%rbp), %rcx
+            cmpb    %sil, %dl                   # is str[i+1] == '%' ?
+            jne     char_arg                    # if it is not, it is a format specifier
+            incq    -16(%rbp)                   # if it is, we skip over the next one and just jump to the printchar call
+            jmp     char_not_arg
+
+    _char_arg:
+    char_arg:
         incq    -8(%rbp)
         incq    -16(%rbp)
-        jmp     start_while_char_not_percentage
+        jmp     start_while_char_not_arg
 
-    _char_not_percentage:
-    char_not_percentage:
+    _char_not_arg:
+    char_not_arg:
         movb    %dl, %dil
         call    putchar                         # putchar will now be called with dil
         incq    -16(%rbp)
-        jmp     start_while_char_not_percentage
-    _end_while_char_not_percentage:
-    end_while_char_not_percentage: 
+        jmp     start_while_char_not_arg
+    _end_while_char_not_arg:
+    end_while_char_not_arg: 
 
 _return:
 return:
