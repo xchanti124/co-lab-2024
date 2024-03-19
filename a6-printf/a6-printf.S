@@ -85,6 +85,7 @@ my_printf:
     subq    $32, %rsp
     movq    $0, -8(%rbp)        # the counter to keep track of the amount of "%" (args) that
     movq    $0, -16(%rbp)       # the counter (to be use as index in the loop) initialized to 0 and stored at -16(%rbp)
+    movq    %rbx, -32(%rbp)
 
     pushq   %r9
     pushq   %r8
@@ -165,6 +166,8 @@ my_printf:
                 je      call_unsigned_int_handler
 
                 incq    -16(%rbp)
+                movb    $'%', %dil
+                call    putchar
                 jmp     start_while_char_not_arg
 
                 _call_string_handler:
@@ -201,6 +204,7 @@ my_printf:
 
 _return:
 return:
+    movq    -32(%rbp), %rbx
     movq    %rbp, %rsp
     popq    %rbp
     ret
@@ -211,41 +215,30 @@ unsigned_int_handler:
     movq    %rsp, %rbp
 
     subq    $32, %rsp
-    movq    %rdi, -8(%rbp)      # move rdi to location -8
+    movl    %edi, %eax          # move rdi to location -8
     movq    $0, -24(%rbp)       # move 0 into location -24 (this will be the counter to keep track of how many digits we got)
 
     _while_quotient_not_0:
     while_quotient_not_0:
-        movq    %rdi, %rax      # rax will be the numerator of the division
-        movq    $10, %r11       # r11 will be the denominator of the division (always 10 since decimal numbers)
         xorq    %rdx, %rdx      # clearing out rdx
-        divq    %r11            # rax / r11 (floor is taken)
-
-        cmpq    $0, %rax        # we check if the result is 0, if it is we jump
-        je      quotient_zero
-        addq    $'0', %rdx      # we turn the remainder into a char
+        movq    $10, %rbx       # rbx will be the denominator of the division (always 10 since decimal numbers)
+        divq    %rbx            # rax / rbx (floor is taken)
+        addq    $48, %rdx       # we turn the remainder into ascii
         pushq   %rdx            # we push it onto the stack
-        movq    %rax, %rdi      # we update rdi with the quotient of the previous division
+        
         incq    -24(%rbp)       # increment the digit counter
-        jmp     while_quotient_not_0 # jump to beginning of the loop
-
-    _quotient_zero:
-    quotient_zero:
-        incq    -24(%rbp)       # in the case that quotient is 0, we have one digit left so increment counter
-        addq    $'0', %rdx      # turn the digit (remainder of division) into a char
-        pushq   %rdx            # push it on the stack
+        cmpl    $0, %eax        # we check if the result is 0, if it is we jump
+        jne     while_quotient_not_0 # jump to beginning of the loop
 
     _while_counter_not_0:
     while_counter_not_0:
-        cmpq    $0, -24(%rbp)
-        je      counter_0
         popq    %rdi
         call    putchar
+
         decq    -24(%rbp)
-        jmp     while_counter_not_0
+        cmpq    $0, -24(%rbp)
+        jne     while_counter_not_0
         
-_counter_0:
-counter_0:
     movq    %rbp, %rsp
     popq    %rbp
     ret
@@ -254,27 +247,56 @@ _signed_int_handler:
 signed_int_handler:
     pushq   %rbp
     movq    %rsp, %rbp
-
     subq    $16, %rsp
-    movq    %rdi, -8(%rbp)
-    cmpq    $0, -8(%rbp)
-    jle     negative_handling
-    call    unsigned_int_handler
-    jmp     return_unsigned
+    xor     %rax, %rax
 
-    _negative_handling:
-    negative_handling:
-        movq    minus_sign(%rip), %rdi
+    # find out if its negative or not
+    movl    %edi, %eax
+    roll    $1, %eax    # roll to the left once, now the most significant bit has become the least significant bit
+    andl    $1, %eax    # this will ignore all bits except the least significant bit, so we can check whether it is one or zero
+    cmpq    $0, %rax    # this now checks excplitly whether the rightmost bit is set or not
+    je      print_signed   # if bit not set, just print num
+
+    # print unsigned
+    movq    %rdi, %rax
+    movq    $-1, %rdx
+    imulq   %rdx
+
+    pushq   %rax
+    movq    $'-', %rdi
+    call    putchar
+    popq    %rax
+    jmp     print_num
+
+    _print_signed:
+    print_signed:
+    mov     %edi, %eax     # value
+
+    _print_num:
+    print_num:
+    # same as unsigned
+    movq    $0, -8(%rbp)   # counter
+
+    _loop_count_push_signed:
+    loop_count_push_signed:
+        xor     %edx, %edx
+        mov     $10, %rbx
+        div     %rbx
+        addq    $48, %rdx
+        pushq   %rdx          # push remainder
+        incq    -8(%rbp)
+        cmp     $0, %eax
+        jne     loop_count_push_signed
+
+    _loop_print_unsigned_signed:
+    loop_print_unsigned_signed:
+        popq    %rdi
         call    putchar
 
-        movq    -8(%rbp), %rsi
-        movq    $-1, %rdx
-        imulq   %rdx, %rsi               # now %rsi holds the positive value
-        movq    %rsi, %rdi
-        call    unsigned_int_handler
+        subq    $1, -8(%rbp)
+        cmpq    $0, -8(%rbp)
+        jne     loop_print_unsigned_signed
 
-_return_unsigned:
-return_unsigned:
     movq    %rbp, %rsp
     popq    %rbp
     ret
