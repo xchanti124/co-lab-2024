@@ -124,8 +124,7 @@ my_printf:
 
     _char_arg:
     char_arg:
-        incq    -8(%rbp)
-
+        incq    -8(%rbp)    # this counts how many arguments we have
         # in here we will add logic for format specifiers:
         # 1. we need to get the next character following '%' and match it with its corresponding argument (either d,u,s)
         # 2. we reach the argument by doing rsp - 8 * counter (if arg_counter <= 5) REGISTERS
@@ -136,19 +135,19 @@ my_printf:
 
             _arg_in_registers:
             arg_in_registers:
-                movb    %dl, -24(%rbp)
-                movq    -8(%rbp), %rcx
-                movq    (%rsp, %rcx, 8), %rdi
+                movb    %dl, -24(%rbp)              # we store the format specifier (u, s, or d) here
+                movq    -8(%rbp), %rcx              # move the arg_counter into rcx
+                movq    (%rsp, %rcx, 8), %rdi       # this is how we reach the register arguments
                 jmp     dealing_with_format
 
             _arg_on_stack:
             arg_on_stack:
-                movb    %dl, -24(%rbp)
-                movq    -8(%rbp), %rcx
-                subq    $5, %rcx
-                movq    %rbp, %rdi
-                addq    $8, %rdi
-                movq    (%rdi, %rcx, 8), %rdi
+                movb    %dl, -24(%rbp)              # we store the format specifier (u, s, or d) here
+                movq    -8(%rbp), %rcx              # move the arg_counter into rcx
+                subq    $5, %rcx                    # subtract 5 (since that is the amount we have from register args)
+                movq    %rbp, %rdi                  # we move the base pointer into rdi (since base pointer should never change)
+                addq    $8, %rdi                    # we need to move the 'start' of rdi up, because the return address is stored first 
+                movq    (%rdi, %rcx, 8), %rdi       # this is how we now can reach the stack arguments
 
             _dealing_with_format:
             dealing_with_format:
@@ -165,10 +164,10 @@ my_printf:
                 cmpb    %sil, %dl                   # is char == "u"    
                 je      call_unsigned_int_handler
 
-                incq    -16(%rbp)
-                movb    $'%', %dil
+                incq    -16(%rbp)                   # we increment the general counter (used to go char by char)
+                movb    percentage_sign(%rip), %dil # in the case that none of the format specifiers were give, we just print %f for example
                 call    putchar
-                jmp     start_while_char_not_arg
+                jmp     start_while_char_not_arg    # jump to beginning of loop (having skipped over % and any following non-specifier)
 
                 _call_string_handler:
                 call_string_handler:
@@ -204,7 +203,7 @@ my_printf:
 
 _return:
 return:
-    movq    -32(%rbp), %rbx
+    movq    -32(%rbp), %rbx     # since rbx is callee saved, we need to restore it
     movq    %rbp, %rsp
     popq    %rbp
     ret
@@ -214,9 +213,9 @@ unsigned_int_handler:
     pushq   %rbp
     movq    %rsp, %rbp
 
-    subq    $32, %rsp
-    movl    %edi, %eax          # move rdi to location -8
-    movq    $0, -24(%rbp)       # move 0 into location -24 (this will be the counter to keep track of how many digits we got)
+    subq    $16, %rsp
+    movl    %edi, %eax         # move rdi to location -8
+    movq    $0, -8(%rbp)       # move 0 into location -24 (this will be the counter to keep track of how many digits we got)
 
     _while_quotient_not_0:
     while_quotient_not_0:
@@ -226,8 +225,8 @@ unsigned_int_handler:
         addq    $48, %rdx       # we turn the remainder into ascii
         pushq   %rdx            # we push it onto the stack
         
-        incq    -24(%rbp)       # increment the digit counter
-        cmpl    $0, %eax        # we check if the result is 0, if it is we jump
+        incq    -8(%rbp)       # increment the digit counter
+        cmpl    $0, %eax       # we check if the result is 0, if it is we jump
         jne     while_quotient_not_0 # jump to beginning of the loop
 
     _while_counter_not_0:
@@ -235,8 +234,8 @@ unsigned_int_handler:
         popq    %rdi
         call    putchar
 
-        decq    -24(%rbp)
-        cmpq    $0, -24(%rbp)
+        subq    $1, -8(%rbp)    # decrement the counter (we pop, then decrement, then pop...)
+        cmpq    $0, -8(%rbp)    # compare it to 0, if it is, loop is over, if it is not, we repeat
         jne     while_counter_not_0
         
     movq    %rbp, %rsp
@@ -257,44 +256,43 @@ signed_int_handler:
     cmpq    $0, %rax    # this now checks excplitly whether the rightmost bit is set or not
     je      print_signed   # if bit not set, just print num
 
-    # print unsigned
+    # print unsigned (multiply by -1)
     movq    %rdi, %rax
     movq    $-1, %rdx
     imulq   %rdx
 
-    pushq   %rax
-    movq    $'-', %rdi
-    call    putchar
-    popq    %rax
+    pushq   %rax                    # we push the result (unsigned) onto the stack
+    movb    minus_sign(%rip), %dil  # load minus sign char into rdi 
+    call    putchar                 # call putchar (will output '-')
+    popq    %rax                    # this just restores rax (since we had a function call that messed up the register)
     jmp     print_num
 
     _print_signed:
     print_signed:
-    mov     %edi, %eax     # value
+    movl    %edi, %eax              # move the value into rax
 
     _print_num:
-    print_num:
-    # same as unsigned
-    movq    $0, -8(%rbp)   # counter
+    print_num:                      # this procedure is now the same algorithm as for the unsigned ints
+    movq    $0, -8(%rbp)            # counter
 
     _loop_count_push_signed:
     loop_count_push_signed:
-        xor     %edx, %edx
-        mov     $10, %rbx
-        div     %rbx
-        addq    $48, %rdx
-        pushq   %rdx          # push remainder
-        incq    -8(%rbp)
-        cmp     $0, %eax
-        jne     loop_count_push_signed
+        xorl    %edx, %edx          # clear out rdx 
+        movl    $10, %ebx           # move 10 (denominator) into rdx
+        divl    %ebx                # eax // ebx -> remainder stored in rbx and result of division in rax
+        addq    $48, %rdx           # change remainder into ascii char
+        pushq   %rdx                # push remainder
+        incq    -8(%rbp)            # increment the counter
+        cmp     $0, %eax            # check if result of division is 0, if it is, we start putting the number together
+        jne     loop_count_push_signed  # if not, we jump to beginning of the loop
 
     _loop_print_unsigned_signed:
     loop_print_unsigned_signed:
         popq    %rdi
         call    putchar
 
-        subq    $1, -8(%rbp)
-        cmpq    $0, -8(%rbp)
+        subq    $1, -8(%rbp)         # decrement the counter (we pop, then decrement, then pop...)
+        cmpq    $0, -8(%rbp)         # compare it to 0, if it is, loop is over, if it is not, we repeat
         jne     loop_print_unsigned_signed
 
     movq    %rbp, %rsp
