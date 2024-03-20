@@ -43,12 +43,45 @@
 # [initialized static variables]
 
 .text
-# [constants/strings]
+read:
+    .asciz "r"
 
 # usage ./a7-bmp-decode src key
 _main:
 main:
-    # Implement me!
+    pushq   %rbp
+    movq    %rsp, %rbp
+    subq    $64, %rsp
+
+    movq    %rdi, -8(%rbp)      # argc
+    movq    %rsi, -16(%rbp)     # argv
+
+    movq    8(%rsi), %rdx
+    movq    %rdx, -24(%rbp)     # -24 now points to the image path
+
+    movq    16(%rsi), %rcx
+    movq    %rcx, -32(%rbp)     # -32 now points to the key
+
+    movq    %rdx, %rdi
+    leaq    read(%rip), %rsi
+
+    call    fopen               # fopen now called with image path and "r" mode
+    movq    %rax, -40(%rbp)     # image pointer now at -40
+
+    # 451 -> 464 to be stack aligned 
+    subq    $528, %rsp
+    leaq    -528(%rbp), %rdi    # first argument bmp_decode (buffer with 464 bytes of space)
+    movq    -32(%rbp), %rsi     # second argument, the key
+    movq    -40(%rbp), %rdx     # third argument, result from fopen, file pointer
+
+    call    bmp_decode
+
+    movq    -40(%rbp), %rdi
+    call    fclose
+
+    movq    %rbp, %rsp
+    popq    %rbp
+    movq    $0, %rax
     ret
 
 # int bmp_decode(char *buf, const char *key, FILE* file)
