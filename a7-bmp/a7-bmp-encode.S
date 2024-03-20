@@ -119,23 +119,6 @@ white_noise:
     popq    %rbp
     ret
 
-
-# - increment character (%rcx)
-# - check if character points at null, if so break out of the algorithm
-# - check if previous char and current char are equal
-# -- if so increment counter (%r8)
-# -- check if counter is 9, if it is
-# --- move 9 to array (counter + 48)
-# --- move former character to the index after that
-# --- reset counter to 1
-# --- repeat loop
-# -- if the counter isn't then
-# --- repeat loop
-# -- if the characters aren't equal
-# --- move counter to array
-# --- move former character to the index after the array
-# --- repeat loop
-
 # rle takes *msg as an argument
 _rle:
 rle:
@@ -165,32 +148,35 @@ rle:
         cmpb    %sil, %dl
         je      char_is_null
 
-        xorb    %sil, %sil                      # clear out sil
-        movb    -1(%rdi, %rcx, 1), %sil         # prev_char -> sil
-        cmpb    %sil, %dl                       # prev_char == cur_char ?
+        xorb    %r10b, %r10b                     # clear out sil
+        movb    -1(%rdi, %rcx, 1), %r10b         # prev_char -> sil
+        cmpb    %r10b, %dl                       # prev_char == cur_char ?
         jne     adding_to_buffer
 
-        incq    %r8
-        cmpq    $9, %r8
-        je      adding_to_buffer
+        incq    %r8                             # increment counter for same chars
+        cmpq    $9, %r8                         # check if the counter has reached 9
+        jl      start_loop                      # if it hasn't, we just continue
+        incq    %rcx                            # if it has, we skip over the next one and continue to normal adding to buffer
 
     _adding_to_buffer:
     adding_to_buffer:
-        addq    $48, %r8
-        movq    %r8, (%rax)
-        movb    %sil, 1(%rax)
+        addq    $48, %r8                        # change r8 into ascii character
+        movq    %r8, (%rax)                     # we add it to the buffer
+        movb    %r10b, 1(%rax)                   # we add the character right after 
         
-        addq    $2, %rax
+        addq    $2, %rax                        # we skip to index 2 so that we don't override anything
 
-        movq    $1, %r8
-        movb    %dl, %sil
-        jmp     start_loop
+        movq    $1, %r8                         # we reset r8
+        movb    %dl, %r10b                      # we update prev_char to cur_char
+        jmp     start_loop 
 
     _char_is_null:
     char_is_null:
+    addq    $48, %r8
+    movq    %r8, (%rax)                      # we add it to the buffer
+    movb    %r10b, 1(%rax)                   # we add the character right after 
+
     movq    -16(%rbp), %rax
     movq    %rbp, %rsp
     popq    %rbp
     ret
-
-    # order : white noise, lead and trail, RLE, xor, hide data 
