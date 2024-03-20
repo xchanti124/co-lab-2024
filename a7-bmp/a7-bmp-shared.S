@@ -26,7 +26,7 @@
     _strnlen: jmp strnlen
 #endif
 
-.global example_subroutine
+.global xor_encryption
 
 .bss
 # [unitialized static variables]
@@ -35,7 +35,43 @@
 # [initialized static variables]
 
 .text
-# [constants/strings]
+null_terminator:
+    .asciz "\0"
 
-example_subroutine:
+# xor_encryption -> rle_msg, key -> modifies rle_msg since we don't need it anymore
+xor_encryption:
+    pushq   %rbp
+    movq    %rsp, %rbp
+
+    subq    $16, %rsp
+    movq    %rdi, -8(%rbp)
+    movq    %rsi, -16(%rbp)
+
+    _start_loop_msg:
+    start_loop_msg:
+        movb    (%rdi), %r8b
+        movb    (%rsi), %r9b
+        movb    null_terminator(%rip), %dl
+        cmpb    %r8b, %dl                       # check whether encoded msg is at \0
+        je      end_loop
+        
+        cmpb    %r9b, %dl                       # check whether key is at \0
+        je      reset_key
+
+        xorb    %r8b, %r9b
+        movb    %r9b, (%rdi)
+        incq    %rdi
+        incq    %rsi
+        jmp     start_loop_msg
+    
+    _reset_key:
+    reset_key:
+        movq    -16(%rbp), %rsi
+        jmp     start_loop_msg
+
+    _end_loop:
+    end_loop:
+    movq    -8(%rbp), %rax
+    movq    %rbp, %rsp
+    popq    %rbp
     ret
