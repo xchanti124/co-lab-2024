@@ -98,11 +98,16 @@ bmp_encode:
     movq    %rsp, %rbp
 
     subq    $32, %rsp
-    movq    %rdi, -8(%rbp)
-    movq    %rsi, -16(%rbp)
-    movq    %rdx, -24(%rbp)
+    movq    %rdi, -8(%rbp)  # -> unencoded msg
+    movq    %rsi, -16(%rbp) # -> key
+    movq    %rdx, -24(%rbp) # -> file*
 
     call    rle
+
+    movq    %rax, %rdi      # -> encoded msg
+    movq    -16(%rbp), %rsi # -> key
+
+    call    xor_encryption
 
     movq    %rsp, %rbp
     popq    %rbp
