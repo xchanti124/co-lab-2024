@@ -87,5 +87,21 @@ main:
 # int bmp_decode(char *buf, const char *key, FILE* file)
 _bmp_decode:
 bmp_decode:
-    # Implement me!
+    push    %rbp
+    movq    %rsp, %rbp
+
+    movq    
+
+    movq    %rbp, %rsp
+    popq    %rbp
     ret
+
+_rle_decode:
+rle_decode:
+    pushq   %rbp
+    movq    %rsp, %rbp
+
+    # 
+
+    movq    %rbp, %rsp
+    popq    %rbp
